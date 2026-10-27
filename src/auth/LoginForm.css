@@ -1,0 +1,40 @@
+.login-form-card {
+  width: min(100%, 460px);
+  margin: 0 auto;
+}
+.login-form-card form {
+  padding: 0 25px 24px;
+}
+.login-form-card .login-stage-note {
+  margin: 20px 0;
+  font-size: 12px;
+}
+.login-form-card .login-fields {
+  display: grid;
+  gap: 20px;
+}
+.login-form-card .login-show-password {
+  gap: 8px;
+  margin: 20px 0;
+}
+.login-form-card .login-actions,
+.login-form-card .login-actions > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.login-form-card .login-actions {
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.login-form-card button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.login-form-card .login-status {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+}

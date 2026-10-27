@@ -1427,3 +1427,46 @@ dialog dd {
     min-width: 0;
   }
 }
+
+.patient-documents {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+  margin-top: 20px;
+}
+.document-list {
+  list-style: none;
+  padding: 0;
+}
+.document-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+.document-list li > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.document-list small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+}
+dialog {
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+.camera-preview {
+  margin-top: 16px;
+}
+.camera-preview video {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  background: #0f172a;
+  border-radius: 8px;
+  object-fit: contain;
+}

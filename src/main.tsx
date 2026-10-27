@@ -15,6 +15,7 @@ import {
 import "@fontsource-variable/dm-sans";
 import "./styles.css";
 import { Sidebar } from "./Sidebar";
+import { PatientDocuments } from "./PatientDocuments";
 import { ModulePages } from "./ModulePages";
 import {
   canAccess,
@@ -228,6 +229,7 @@ function App() {
   const [resultDetail, setResultDetail] = useState("Standard");
   const [results, setResults] = useState<Patient[] | null>(null);
   const [preview, setPreview] = useState<Patient | null>(null);
+  const [editing, setEditing] = useState<Patient | null>(null);
   const save = (next: Database) => {
     try {
       localStorage.setItem(KEY, JSON.stringify(next));
@@ -242,6 +244,7 @@ function App() {
   };
   const navigate = (p: Page) => {
     if (!canAccess(role, p)) return;
+    setEditing(null);
     setPage(p);
     setErrors({});
     setNotice("");
@@ -300,6 +303,7 @@ function App() {
       if (
         db.patients.some(
           (p) =>
+            p.id !== editing?.id &&
             p.firstName.toLowerCase() === data.firstName?.toLowerCase() &&
             p.lastName.toLowerCase() === data.lastName?.toLowerCase() &&
             p.dob === data.dob,
@@ -336,6 +340,26 @@ function App() {
       return;
     }
     if (page === "patients") {
+      if (editing) {
+        const updated = { ...editing, ...data };
+        if (
+          save({
+            ...db,
+            patients: db.patients.map((p) =>
+              p.id === editing.id ? updated : p,
+            ),
+          })
+        ) {
+          setResults(
+            (current) =>
+              current?.map((p) => (p.id === updated.id ? updated : p)) ?? null,
+          );
+          setEditing(null);
+          setPreview(updated);
+          setNotice("Patient record updated successfully.");
+        }
+        return;
+      }
       const id = `PT-${String(Math.max(0, ...db.patients.map((p) => Number(p.id.slice(3)))) + 1).padStart(4, "0")}`;
       if (
         save({
@@ -416,7 +440,13 @@ function App() {
     extra: React.InputHTMLAttributes<HTMLInputElement> = {},
   ) => (
     <Field errors={errors} name={name} label={label} required={required}>
-      <input type="text" maxLength={80} placeholder={placeholder} {...extra} />
+      <input
+        type="text"
+        maxLength={80}
+        placeholder={placeholder}
+        defaultValue={page === "patients" ? editing?.[name] : undefined}
+        {...extra}
+      />
     </Field>
   );
   const select = (
@@ -427,7 +457,11 @@ function App() {
     defaultValue = "",
   ) => (
     <Field errors={errors} name={name} label={label} required={required}>
-      <select defaultValue={defaultValue}>
+      <select
+        defaultValue={
+          page === "patients" ? (editing?.[name] ?? defaultValue) : defaultValue
+        }
+      >
         <option value="">{required ? "Select an option" : "All"}</option>
         {options.map((v) => (
           <option key={v}>{v}</option>
@@ -559,7 +593,9 @@ function App() {
                     <div>
                       <h2>
                         {page === "patients"
-                          ? "Patient information"
+                          ? editing
+                            ? `Edit patient ? ${editing.id}`
+                            : "Patient information"
                           : page === "visits"
                             ? "Visit details"
                             : page === "search"
@@ -587,7 +623,7 @@ function App() {
                     </div>
                   )}
                   <form
-                    key={page}
+                    key={`${page}-${editing?.id ?? "new"}`}
                     onSubmit={submit}
                     noValidate
                     onReset={() => {
@@ -660,6 +696,7 @@ function App() {
                           >
                             <input
                               type="date"
+                              defaultValue={editing?.dob}
                               min={new Date(
                                 new Date().getFullYear() - 120,
                                 0,
@@ -697,6 +734,7 @@ function App() {
                           >
                             <input
                               type="tel"
+                              defaultValue={editing?.phone}
                               placeholder="09171234567"
                               pattern={phoneRule}
                               maxLength={13}
@@ -710,6 +748,7 @@ function App() {
                           >
                             <input
                               type="email"
+                              defaultValue={editing?.email}
                               placeholder="maria@example.com"
                               maxLength={120}
                               autoComplete="email"
@@ -745,6 +784,7 @@ function App() {
                           >
                             <input
                               type="tel"
+                              defaultValue={editing?.emergencyPhone}
                               placeholder="09181234567"
                               pattern={phoneRule}
                               maxLength={13}
@@ -1113,6 +1153,19 @@ function App() {
                         </p>
                       </>
                     )}
+                    {page === "patients" && editing && (
+                      <button
+                        className="button secondary"
+                        type="button"
+                        onClick={() => {
+                          setEditing(null);
+                          setErrors({});
+                          setNotice("");
+                        }}
+                      >
+                        Cancel editing
+                      </button>
+                    )}
                     <div className="form-footer">
                       <span>
                         <ShieldCheck size={15} />
@@ -1126,7 +1179,9 @@ function App() {
                         </button>
                         <button className="button primary" type="submit">
                           {page === "patients"
-                            ? "Register patient"
+                            ? editing
+                              ? "Save patient changes"
+                              : "Register patient"
                             : page === "visits"
                               ? "Add to queue"
                               : page === "search"
@@ -1320,6 +1375,16 @@ function App() {
               <p>
                 {preview.id} · {age(preview.dob)} years · {preview.sex}
               </p>
+              <button
+                className="button primary"
+                onClick={() => {
+                  const patient = preview;
+                  navigate("patients");
+                  setEditing(patient);
+                }}
+              >
+                Edit patient record
+              </button>
               <dl>
                 <dt>Mobile</dt>
                 <dd>{preview.phone}</dd>
@@ -1336,6 +1401,30 @@ function App() {
                 <dt>Registered</dt>
                 <dd>{preview.created}</dd>
               </dl>
+              <PatientDocuments
+                key={preview.id}
+                value={preview.documents || "[]"}
+                onSave={(documents) => {
+                  const updated = { ...preview, documents };
+                  if (
+                    !save({
+                      ...db,
+                      patients: db.patients.map((p) =>
+                        p.id === updated.id ? updated : p,
+                      ),
+                    })
+                  )
+                    return false;
+                  setPreview(updated);
+                  setResults(
+                    (current) =>
+                      current?.map((p) =>
+                        p.id === updated.id ? updated : p,
+                      ) ?? null,
+                  );
+                  return true;
+                }}
+              />
             </>
           </dialog>
         </div>

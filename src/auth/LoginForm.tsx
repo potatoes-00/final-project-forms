@@ -48,7 +48,7 @@ export function LoginForm({ onLogin, onForgotPassword }: LoginFormProps) {
     } catch {
       // Never render raw provider errors, which may contain sensitive details.
       setSubmissionError(
-        "Unable to sign in. Check your details and try again.",
+        "Unable to sign in. Check your username and password. Locked or deactivated accounts cannot sign in.",
       );
     } finally {
       pending.current = false;
@@ -86,7 +86,7 @@ export function LoginForm({ onLogin, onForgotPassword }: LoginFormProps) {
         }}
       >
         <p className="helper login-stage-note" id={`${id}-help`}>
-          Login form UI only. Supabase authentication is not connected yet.
+          Local prototype login. Supabase is not used.
         </p>
         <div className="login-fields">
           <div className="field">

@@ -1,15 +1,5 @@
 import { useState, type ReactNode } from "react";
-import {
-  ArrowRight,
-  Users,
-  ListOrdered,
-  FlaskConical,
-  Receipt,
-  Plus,
-  Download,
-  Search,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, Plus, Download, Search, ShieldCheck } from "lucide-react";
 import { roleNames, type Page, type Role } from "./navigation";
 
 type RecordValues = Record<string, string>;
@@ -218,13 +208,11 @@ export function ModulePages({
       {
         label: "Registered patients",
         value: patients.length,
-        Icon: Users,
         target: "search",
       },
       {
         label: "Waiting today",
         value: queue.filter((v) => v.status !== "In Consultation").length,
-        Icon: ListOrdered,
         target: "visits",
       },
       {
@@ -232,28 +220,23 @@ export function ModulePages({
         value: data.requests.filter((r) =>
           ["Requested", "Pending"].includes(r.status),
         ).length,
-        Icon: FlaskConical,
         target: "services",
       },
       {
         label: "Payments today",
         value: data.payments.filter((p) => p.date === clinicDate()).length,
-        Icon: Receipt,
         target: "billing",
       },
     ] as const;
     return (
       <div className="module-stack">
         <div className="dashboard-metrics">
-          {metrics.map(({ label, value, Icon, target }) => (
+          {metrics.map(({ label, value, target }) => (
             <button
               key={label}
               className="metric-card"
               onClick={() => navigate(target)}
             >
-              <span className="stat-icon">
-                <Icon size={21} />
-              </span>
               <span>
                 <small>{label}</small>
                 <strong>{String(value).padStart(2, "0")}</strong>
@@ -555,7 +538,7 @@ export function ModulePages({
                     <th>Service ID</th>
                     <th>Service</th>
                     <th>Category</th>
-                    <th>Fee</th>
+                    <th className="numeric">Fee</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -564,7 +547,7 @@ export function ModulePages({
                       <td>{s.id}</td>
                       <td>{s.name}</td>
                       <td>{s.category}</td>
-                      <td>{money(s.fee)}</td>
+                      <td className="numeric">{money(s.fee)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -953,7 +936,7 @@ export function ModulePages({
                     <th>Payment</th>
                     <th>Patient</th>
                     <th>Service</th>
-                    <th>Amount</th>
+                    <th className="numeric">Amount</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -963,7 +946,7 @@ export function ModulePages({
                       <td>{p.id}</td>
                       <td>{patientName(p.patient)}</td>
                       <td>{p.service}</td>
-                      <td>{money(p.total)}</td>
+                      <td className="numeric">{money(p.total)}</td>
                       <td>
                         <Badge>Paid</Badge>
                       </td>
@@ -1104,7 +1087,9 @@ export function ModulePages({
                       <th>ID</th>
                       <th>Patient</th>
                       <th>Date</th>
-                      <th>
+                      <th
+                        className={report === "revenue" ? "numeric" : undefined}
+                      >
                         {report === "revenue"
                           ? "Amount"
                           : report === "visits"
@@ -1119,7 +1104,13 @@ export function ModulePages({
                         <td>{row.id}</td>
                         <td>{row.name}</td>
                         <td>{row.date}</td>
-                        <td>{row.detail}</td>
+                        <td
+                          className={
+                            report === "revenue" ? "numeric" : undefined
+                          }
+                        >
+                          {row.detail}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

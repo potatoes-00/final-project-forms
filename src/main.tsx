@@ -6,17 +6,13 @@ import {
   ChevronRight,
   ClipboardList,
   Clock3,
-  Download,
-  LayoutDashboard,
   Search,
-  Settings2,
   ShieldCheck,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
 import "@fontsource-variable/dm-sans";
-import "@fontsource-variable/manrope";
 import "./styles.css";
 import { Sidebar } from "./Sidebar";
 import { ModulePages } from "./ModulePages";
@@ -479,7 +475,6 @@ function App() {
       <div className="workspace">
         <header className="topbar">
           <div className="breadcrumb">
-            <LayoutDashboard size={17} />
             <span>Clinic workspace</span>
             <ChevronRight size={14} />
             <strong>{pageNames[page]}</strong>
@@ -488,6 +483,7 @@ function App() {
             <label className="role-preview">
               <span>Role preview</span>
               <select
+                aria-label="Role preview"
                 value={role}
                 onChange={(event) => {
                   const nextRole = event.target.value as Role;
@@ -557,48 +553,9 @@ function App() {
           </div>
           {isFormPage ? (
             <>
-              {page !== "settings" && (
-                <div className="stats">
-                  <div>
-                    <span className="stat-icon">
-                      <Users size={21} />
-                    </span>
-                    <span>
-                      <small>Registered patients</small>
-                      <strong>
-                        {String(db.patients.length).padStart(2, "0")}
-                      </strong>
-                    </span>
-                  </div>
-                  <div>
-                    <span className="stat-icon peach">
-                      <ClipboardList size={21} />
-                    </span>
-                    <span>
-                      <small>Walk-ins today</small>
-                      <strong>
-                        {String(
-                          db.visits.filter((v) => v.date === today()).length,
-                        ).padStart(2, "0")}
-                      </strong>
-                    </span>
-                  </div>
-                </div>
-              )}
               <div className="content-grid">
                 <section className="form-card">
                   <div className="card-heading">
-                    <div className="heading-icon">
-                      {page === "patients" ? (
-                        <UserPlus size={21} />
-                      ) : page === "visits" ? (
-                        <ClipboardList size={21} />
-                      ) : page === "search" ? (
-                        <Search size={21} />
-                      ) : (
-                        <Settings2 size={21} />
-                      )}
-                    </div>
                     <div>
                       <h2>
                         {page === "patients"
@@ -674,7 +631,6 @@ function App() {
                     {page === "patients" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>Personal details</h3>
                         </div>
                         <div className="fields">
@@ -729,7 +685,6 @@ function App() {
                           ])}
                         </div>
                         <div className="section-title">
-                          <span>02</span>
                           <h3>Contact information</h3>
                         </div>
                         <div className="fields">
@@ -828,7 +783,6 @@ function App() {
                     {page === "visits" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>Patient & arrival</h3>
                         </div>
                         <div className="fields">
@@ -906,7 +860,6 @@ function App() {
                           </Field>
                         </div>
                         <div className="section-title">
-                          <span>02</span>
                           <h3>Visit preferences</h3>
                         </div>
                         <fieldset className="radio-field">
@@ -955,7 +908,6 @@ function App() {
                     {page === "search" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>Patient lookup</h3>
                         </div>
                         <div className="fields">
@@ -1048,7 +1000,6 @@ function App() {
                     {page === "settings" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>About you</h3>
                         </div>
                         <div className="fields">
@@ -1110,7 +1061,6 @@ function App() {
                           </Field>
                         </div>
                         <div className="section-title">
-                          <span>02</span>
                           <h3>Communication preferences</h3>
                         </div>
                         <div className="fields">
@@ -1303,19 +1253,6 @@ function App() {
                         : "View patient directory"}
                       <ArrowRight size={15} />
                     </button>
-                  </div>
-                  <div className="local-note">
-                    <ShieldCheck size={20} />
-                    <div>
-                      <strong>Data storage</strong>
-                      <p>
-                        Fictional sample records. Data stays on this device and
-                        browser.
-                      </p>
-                      <button onClick={exportData}>
-                        <Download size={13} /> Export demo records
-                      </button>
-                    </div>
                   </div>
                 </aside>
               </div>

@@ -1,5 +1,16 @@
+import { StaffAccounts } from "./auth/StaffAccounts";
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Plus, Download, Search, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Users,
+  ListOrdered,
+  FlaskConical,
+  Receipt,
+  Plus,
+  Download,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 import { roleNames, type Page, type Role } from "./navigation";
 
 type RecordValues = Record<string, string>;
@@ -208,11 +219,13 @@ export function ModulePages({
       {
         label: "Registered patients",
         value: patients.length,
+        Icon: Users,
         target: "search",
       },
       {
         label: "Waiting today",
         value: queue.filter((v) => v.status !== "In Consultation").length,
+        Icon: ListOrdered,
         target: "visits",
       },
       {
@@ -220,23 +233,28 @@ export function ModulePages({
         value: data.requests.filter((r) =>
           ["Requested", "Pending"].includes(r.status),
         ).length,
+        Icon: FlaskConical,
         target: "services",
       },
       {
         label: "Payments today",
         value: data.payments.filter((p) => p.date === clinicDate()).length,
+        Icon: Receipt,
         target: "billing",
       },
     ] as const;
     return (
       <div className="module-stack">
         <div className="dashboard-metrics">
-          {metrics.map(({ label, value, target }) => (
+          {metrics.map(({ label, value, Icon, target }) => (
             <button
               key={label}
               className="metric-card"
               onClick={() => navigate(target)}
             >
+              <span className="stat-icon">
+                <Icon size={21} />
+              </span>
               <span>
                 <small>{label}</small>
                 <strong>{String(value).padStart(2, "0")}</strong>
@@ -538,7 +556,7 @@ export function ModulePages({
                     <th>Service ID</th>
                     <th>Service</th>
                     <th>Category</th>
-                    <th className="numeric">Fee</th>
+                    <th>Fee</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -547,7 +565,7 @@ export function ModulePages({
                       <td>{s.id}</td>
                       <td>{s.name}</td>
                       <td>{s.category}</td>
-                      <td className="numeric">{money(s.fee)}</td>
+                      <td>{money(s.fee)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -936,7 +954,7 @@ export function ModulePages({
                     <th>Payment</th>
                     <th>Patient</th>
                     <th>Service</th>
-                    <th className="numeric">Amount</th>
+                    <th>Amount</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -946,7 +964,7 @@ export function ModulePages({
                       <td>{p.id}</td>
                       <td>{patientName(p.patient)}</td>
                       <td>{p.service}</td>
-                      <td className="numeric">{money(p.total)}</td>
+                      <td>{money(p.total)}</td>
                       <td>
                         <Badge>Paid</Badge>
                       </td>
@@ -1087,9 +1105,7 @@ export function ModulePages({
                       <th>ID</th>
                       <th>Patient</th>
                       <th>Date</th>
-                      <th
-                        className={report === "revenue" ? "numeric" : undefined}
-                      >
+                      <th>
                         {report === "revenue"
                           ? "Amount"
                           : report === "visits"
@@ -1104,13 +1120,7 @@ export function ModulePages({
                         <td>{row.id}</td>
                         <td>{row.name}</td>
                         <td>{row.date}</td>
-                        <td
-                          className={
-                            report === "revenue" ? "numeric" : undefined
-                          }
-                        >
-                          {row.detail}
-                        </td>
+                        <td>{row.detail}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1125,151 +1135,7 @@ export function ModulePages({
     );
   }
   if (page === "staff" && role === "admin")
-    return (
-      <div className="module-stack">
-        {feedback}
-        <div className="module-actions">
-          <button
-            className="button primary"
-            onClick={() => setShowAdd(!showAdd)}
-            aria-expanded={showAdd}
-          >
-            <Plus size={16} />
-            Add staff account
-          </button>
-        </div>
-        {showAdd && (
-          <Panel title="New staff account">
-            <form
-              className="module-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const v = values(e.currentTarget);
-                if (!v.name.trim() || !v.title.trim()) {
-                  setNotice("Enter a name and job title.");
-                  return;
-                }
-                if (
-                  data.staff.some(
-                    (s) =>
-                      s.email.toLowerCase() === v.email.trim().toLowerCase(),
-                  )
-                ) {
-                  setNotice("An account with this email already exists.");
-                  return;
-                }
-                if (
-                  commit(
-                    {
-                      ...data,
-                      staff: [
-                        ...data.staff,
-                        {
-                          id: `STF-${String(data.staff.length + 1).padStart(3, "0")}`,
-                          name: v.name.trim(),
-                          email: v.email.trim(),
-                          title: v.title.trim(),
-                          status: "Active",
-                        },
-                      ],
-                    },
-                    "Staff account added to the UI preview. No sign-in invitation was sent.",
-                  )
-                )
-                  setShowAdd(false);
-              }}
-            >
-              <div className="module-form-grid">
-                <label>
-                  Full name
-                  <input name="name" required maxLength={80} />
-                </label>
-                <label>
-                  Email address
-                  <input name="email" type="email" required />
-                </label>
-                <label>
-                  Job title
-                  <input name="title" required maxLength={80} />
-                </label>
-                <label>
-                  Access level
-                  <input value="Clinic Staff" readOnly />
-                </label>
-              </div>
-              <div className="module-actions">
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={() => setShowAdd(false)}
-                >
-                  Cancel
-                </button>
-                <button className="button primary">Create staff account</button>
-              </div>
-            </form>
-          </Panel>
-        )}
-        <Panel title="Clinic staff">
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Job title</th>
-                  <th>Access</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.staff.map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      {s.name}
-                      <small className="table-secondary">{s.id}</small>
-                    </td>
-                    <td>{s.email}</td>
-                    <td>{s.title}</td>
-                    <td>Clinic Staff</td>
-                    <td>
-                      <Badge>{s.status}</Badge>
-                    </td>
-                    <td>
-                      <button
-                        className="inline-button"
-                        onClick={() =>
-                          commit(
-                            {
-                              ...data,
-                              staff: data.staff.map((item) =>
-                                item.id === s.id
-                                  ? {
-                                      ...item,
-                                      status:
-                                        s.status === "Active"
-                                          ? "Inactive"
-                                          : "Active",
-                                    }
-                                  : item,
-                              ),
-                            },
-                            "Staff account status updated in the UI preview.",
-                          )
-                        }
-                      >
-                        {s.status === "Active" ? "Deactivate" : "Activate"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      </div>
-    );
+    return <StaffAccounts legacyStaff={data.staff} />;
   if (page === "maintenance" && role === "admin")
     return (
       <div className="module-stack">

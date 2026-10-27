@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
@@ -6,24 +6,31 @@ import {
   ChevronRight,
   ClipboardList,
   Clock3,
+  Download,
+  LayoutDashboard,
   Search,
+  Settings2,
   ShieldCheck,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
 import "@fontsource-variable/dm-sans";
+import "@fontsource-variable/manrope";
+import { LoginForm } from "./auth/LoginForm";
+import {
+  ACCOUNT_KEY,
+  DEMO_ADMIN,
+  DEMO_PASSWORD,
+  login,
+  logout,
+  restoreSession,
+  type Identity,
+} from "./auth/prototypeAuth";
 import "./styles.css";
 import { Sidebar } from "./Sidebar";
-import { PatientDocuments } from "./PatientDocuments";
 import { ModulePages } from "./ModulePages";
-import {
-  canAccess,
-  pageNames,
-  roleNames,
-  type Page,
-  type Role,
-} from "./navigation";
+import { canAccess, pageNames, roleNames, type Page } from "./navigation";
 
 type Values = Record<string, string>;
 type Patient = Values & { id: string; created: string };
@@ -212,24 +219,15 @@ function Field({
     </div>
   );
 }
-function App() {
+function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
   const [db, setDB] = useState<Database>(readDB);
-  const [role, setRole] = useState<Role>(() => {
-    try {
-      return sessionStorage.getItem("medisystem-role-preview") === "staff"
-        ? "staff"
-        : "admin";
-    } catch {
-      return "admin";
-    }
-  });
+  const role = user.role;
   const [page, setPage] = useState<Page>("dashboard");
   const [errors, setErrors] = useState<Values>({});
   const [notice, setNotice] = useState("");
   const [resultDetail, setResultDetail] = useState("Standard");
   const [results, setResults] = useState<Patient[] | null>(null);
   const [preview, setPreview] = useState<Patient | null>(null);
-  const [editing, setEditing] = useState<Patient | null>(null);
   const save = (next: Database) => {
     try {
       localStorage.setItem(KEY, JSON.stringify(next));
@@ -244,7 +242,6 @@ function App() {
   };
   const navigate = (p: Page) => {
     if (!canAccess(role, p)) return;
-    setEditing(null);
     setPage(p);
     setErrors({});
     setNotice("");
@@ -303,7 +300,6 @@ function App() {
       if (
         db.patients.some(
           (p) =>
-            p.id !== editing?.id &&
             p.firstName.toLowerCase() === data.firstName?.toLowerCase() &&
             p.lastName.toLowerCase() === data.lastName?.toLowerCase() &&
             p.dob === data.dob,
@@ -340,26 +336,6 @@ function App() {
       return;
     }
     if (page === "patients") {
-      if (editing) {
-        const updated = { ...editing, ...data };
-        if (
-          save({
-            ...db,
-            patients: db.patients.map((p) =>
-              p.id === editing.id ? updated : p,
-            ),
-          })
-        ) {
-          setResults(
-            (current) =>
-              current?.map((p) => (p.id === updated.id ? updated : p)) ?? null,
-          );
-          setEditing(null);
-          setPreview(updated);
-          setNotice("Patient record updated successfully.");
-        }
-        return;
-      }
       const id = `PT-${String(Math.max(0, ...db.patients.map((p) => Number(p.id.slice(3)))) + 1).padStart(4, "0")}`;
       if (
         save({
@@ -440,13 +416,7 @@ function App() {
     extra: React.InputHTMLAttributes<HTMLInputElement> = {},
   ) => (
     <Field errors={errors} name={name} label={label} required={required}>
-      <input
-        type="text"
-        maxLength={80}
-        placeholder={placeholder}
-        defaultValue={page === "patients" ? editing?.[name] : undefined}
-        {...extra}
-      />
+      <input type="text" maxLength={80} placeholder={placeholder} {...extra} />
     </Field>
   );
   const select = (
@@ -457,11 +427,7 @@ function App() {
     defaultValue = "",
   ) => (
     <Field errors={errors} name={name} label={label} required={required}>
-      <select
-        defaultValue={
-          page === "patients" ? (editing?.[name] ?? defaultValue) : defaultValue
-        }
-      >
+      <select defaultValue={defaultValue}>
         <option value="">{required ? "Select an option" : "All"}</option>
         {options.map((v) => (
           <option key={v}>{v}</option>
@@ -509,32 +475,18 @@ function App() {
       <div className="workspace">
         <header className="topbar">
           <div className="breadcrumb">
+            <LayoutDashboard size={17} />
             <span>Clinic workspace</span>
             <ChevronRight size={14} />
             <strong>{pageNames[page]}</strong>
           </div>
           <div className="top-right">
-            <label className="role-preview">
-              <span>Role preview</span>
-              <select
-                aria-label="Role preview"
-                value={role}
-                onChange={(event) => {
-                  const nextRole = event.target.value as Role;
-                  setRole(nextRole);
-                  try {
-                    sessionStorage.setItem("medisystem-role-preview", nextRole);
-                  } catch {}
-                  setPreview(null);
-                  setErrors({});
-                  setNotice("");
-                  if (!canAccess(nextRole, page)) setPage("dashboard");
-                }}
-              >
-                <option value="admin">Admin / Doctor</option>
-                <option value="staff">Clinic Staff</option>
-              </select>
-            </label>
+            <span className="authenticated-identity">
+              {user.name} · {roleNames[role]}
+            </span>
+            <button className="button secondary" onClick={onLogout}>
+              Logout
+            </button>
             <div className="top-divider" />
             <button className="profile" onClick={() => navigate("settings")}>
               <span className="avatar">
@@ -587,15 +539,62 @@ function App() {
           </div>
           {isFormPage ? (
             <>
+              {page !== "settings" && (
+                <div className="stats">
+                  <div>
+                    <span className="stat-icon">
+                      <Users size={21} />
+                    </span>
+                    <span>
+                      <small>Registered patients</small>
+                      <strong>
+                        {String(db.patients.length).padStart(2, "0")}
+                      </strong>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="stat-icon peach">
+                      <ClipboardList size={21} />
+                    </span>
+                    <span>
+                      <small>Walk-ins today</small>
+                      <strong>
+                        {String(
+                          db.visits.filter((v) => v.date === today()).length,
+                        ).padStart(2, "0")}
+                      </strong>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="stat-icon lavender">
+                      <ShieldCheck size={21} />
+                    </span>
+                    <span>
+                      <small>Workspace storage</small>
+                      <strong className="stat-word">This browser</strong>
+                    </span>
+                    <span className="stat-note">Fictional data only</span>
+                  </div>
+                </div>
+              )}
               <div className="content-grid">
                 <section className="form-card">
                   <div className="card-heading">
+                    <div className="heading-icon">
+                      {page === "patients" ? (
+                        <UserPlus size={21} />
+                      ) : page === "visits" ? (
+                        <ClipboardList size={21} />
+                      ) : page === "search" ? (
+                        <Search size={21} />
+                      ) : (
+                        <Settings2 size={21} />
+                      )}
+                    </div>
                     <div>
                       <h2>
                         {page === "patients"
-                          ? editing
-                            ? `Edit patient ? ${editing.id}`
-                            : "Patient information"
+                          ? "Patient information"
                           : page === "visits"
                             ? "Visit details"
                             : page === "search"
@@ -623,7 +622,7 @@ function App() {
                     </div>
                   )}
                   <form
-                    key={`${page}-${editing?.id ?? "new"}`}
+                    key={page}
                     onSubmit={submit}
                     noValidate
                     onReset={() => {
@@ -667,6 +666,7 @@ function App() {
                     {page === "patients" && (
                       <>
                         <div className="section-title">
+                          <span>01</span>
                           <h3>Personal details</h3>
                         </div>
                         <div className="fields">
@@ -696,7 +696,6 @@ function App() {
                           >
                             <input
                               type="date"
-                              defaultValue={editing?.dob}
                               min={new Date(
                                 new Date().getFullYear() - 120,
                                 0,
@@ -722,6 +721,7 @@ function App() {
                           ])}
                         </div>
                         <div className="section-title">
+                          <span>02</span>
                           <h3>Contact information</h3>
                         </div>
                         <div className="fields">
@@ -734,7 +734,6 @@ function App() {
                           >
                             <input
                               type="tel"
-                              defaultValue={editing?.phone}
                               placeholder="09171234567"
                               pattern={phoneRule}
                               maxLength={13}
@@ -748,7 +747,6 @@ function App() {
                           >
                             <input
                               type="email"
-                              defaultValue={editing?.email}
                               placeholder="maria@example.com"
                               maxLength={120}
                               autoComplete="email"
@@ -784,7 +782,6 @@ function App() {
                           >
                             <input
                               type="tel"
-                              defaultValue={editing?.emergencyPhone}
                               placeholder="09181234567"
                               pattern={phoneRule}
                               maxLength={13}
@@ -823,6 +820,7 @@ function App() {
                     {page === "visits" && (
                       <>
                         <div className="section-title">
+                          <span>01</span>
                           <h3>Patient & arrival</h3>
                         </div>
                         <div className="fields">
@@ -900,6 +898,7 @@ function App() {
                           </Field>
                         </div>
                         <div className="section-title">
+                          <span>02</span>
                           <h3>Visit preferences</h3>
                         </div>
                         <fieldset className="radio-field">
@@ -948,6 +947,7 @@ function App() {
                     {page === "search" && (
                       <>
                         <div className="section-title">
+                          <span>01</span>
                           <h3>Patient lookup</h3>
                         </div>
                         <div className="fields">
@@ -1040,6 +1040,7 @@ function App() {
                     {page === "settings" && (
                       <>
                         <div className="section-title">
+                          <span>01</span>
                           <h3>About you</h3>
                         </div>
                         <div className="fields">
@@ -1101,6 +1102,7 @@ function App() {
                           </Field>
                         </div>
                         <div className="section-title">
+                          <span>02</span>
                           <h3>Communication preferences</h3>
                         </div>
                         <div className="fields">
@@ -1153,19 +1155,6 @@ function App() {
                         </p>
                       </>
                     )}
-                    {page === "patients" && editing && (
-                      <button
-                        className="button secondary"
-                        type="button"
-                        onClick={() => {
-                          setEditing(null);
-                          setErrors({});
-                          setNotice("");
-                        }}
-                      >
-                        Cancel editing
-                      </button>
-                    )}
                     <div className="form-footer">
                       <span>
                         <ShieldCheck size={15} />
@@ -1179,9 +1168,7 @@ function App() {
                         </button>
                         <button className="button primary" type="submit">
                           {page === "patients"
-                            ? editing
-                              ? "Save patient changes"
-                              : "Register patient"
+                            ? "Register patient"
                             : page === "visits"
                               ? "Add to queue"
                               : page === "search"
@@ -1309,6 +1296,19 @@ function App() {
                       <ArrowRight size={15} />
                     </button>
                   </div>
+                  <div className="local-note">
+                    <ShieldCheck size={20} />
+                    <div>
+                      <strong>Data storage</strong>
+                      <p>
+                        Fictional sample records. Data stays on this device and
+                        browser.
+                      </p>
+                      <button onClick={exportData}>
+                        <Download size={13} /> Export demo records
+                      </button>
+                    </div>
+                  </div>
                 </aside>
               </div>
             </>
@@ -1375,16 +1375,6 @@ function App() {
               <p>
                 {preview.id} · {age(preview.dob)} years · {preview.sex}
               </p>
-              <button
-                className="button primary"
-                onClick={() => {
-                  const patient = preview;
-                  navigate("patients");
-                  setEditing(patient);
-                }}
-              >
-                Edit patient record
-              </button>
               <dl>
                 <dt>Mobile</dt>
                 <dd>{preview.phone}</dd>
@@ -1401,30 +1391,6 @@ function App() {
                 <dt>Registered</dt>
                 <dd>{preview.created}</dd>
               </dl>
-              <PatientDocuments
-                key={preview.id}
-                value={preview.documents || "[]"}
-                onSave={(documents) => {
-                  const updated = { ...preview, documents };
-                  if (
-                    !save({
-                      ...db,
-                      patients: db.patients.map((p) =>
-                        p.id === updated.id ? updated : p,
-                      ),
-                    })
-                  )
-                    return false;
-                  setPreview(updated);
-                  setResults(
-                    (current) =>
-                      current?.map((p) =>
-                        p.id === updated.id ? updated : p,
-                      ) ?? null,
-                  );
-                  return true;
-                }}
-              />
             </>
           </dialog>
         </div>
@@ -1432,8 +1398,68 @@ function App() {
     </>
   );
 }
+function PrototypeRoot() {
+  const [user, setUser] = useState<Identity | null>(restoreSession);
+  const [feedback, setFeedback] = useState("");
+  const signOut = () => {
+    try {
+      logout();
+      setUser(null);
+      setFeedback("You have logged out of the prototype.");
+    } catch {
+      setFeedback("Unable to clear the prototype session. Please try again.");
+    }
+  };
+  useEffect(() => {
+    const refresh = () => setUser(restoreSession());
+    const storage = (event: StorageEvent) => {
+      if (event.key === ACCOUNT_KEY || event.key === null) refresh();
+    };
+    window.addEventListener("storage", storage);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", storage);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+  if (user)
+    return (
+      <>
+        {feedback && <p role="status">{feedback}</p>}
+        <App key={user.id} user={user} onLogout={signOut} />
+      </>
+    );
+  return (
+    <main className="prototype-login">
+      <p className="helper">
+        Offline UI prototype — not secure for production. Use fictional data
+        only.
+      </p>
+      <p className="helper">
+        Admin / Doctor demo: <strong>{DEMO_ADMIN.username}</strong> /{" "}
+        <strong>{DEMO_PASSWORD}</strong>
+      </p>
+      {feedback && <p role="status">{feedback}</p>}
+      <LoginForm
+        onLogin={async (credentials) => {
+          const identity = await login(
+            credentials.username,
+            credentials.password,
+          );
+          setFeedback("");
+          setUser(identity);
+        }}
+        onForgotPassword={() =>
+          setFeedback(
+            "Prototype only: password recovery is unavailable and no email was sent. Ask the demo administrator for help.",
+          )
+        }
+      />
+    </main>
+  );
+}
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <PrototypeRoot />
   </React.StrictMode>,
 );

@@ -17,6 +17,13 @@ export async function createStaff(
   username = "demo.staff",
   email = "demo.staff@example.com",
 ) {
+  const menu = page.locator(".menu-toggle");
+  if (
+    (await menu.isVisible()) &&
+    (await menu.getAttribute("aria-expanded")) === "false"
+  ) {
+    await menu.click();
+  }
   await page
     .locator(".sidebar")
     .getByRole("button", { name: "Staff Accounts", exact: true })

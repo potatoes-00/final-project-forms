@@ -143,6 +143,9 @@ test("keyboard navigation, accessible modal, control counts, and mobile layout",
   await expect(
     page.getByRole("heading", { name: "Dashboard", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Skip to main content" }),
+  ).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Skip to main content" }),

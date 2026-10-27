@@ -2,6 +2,19 @@
   width: min(100%, 460px);
   margin: 0 auto;
 }
+.login-form-card .card-heading {
+  justify-content: flex-start;
+}
+.login-form-card .heading-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eef5f0;
+  color: #50836b;
+}
 .login-form-card form {
   padding: 0 25px 24px;
 }

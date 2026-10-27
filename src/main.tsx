@@ -6,17 +6,13 @@ import {
   ChevronRight,
   ClipboardList,
   Clock3,
-  Download,
-  LayoutDashboard,
   Search,
-  Settings2,
   ShieldCheck,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
 import "@fontsource-variable/dm-sans";
-import "@fontsource-variable/manrope";
 import { LoginForm } from "./auth/LoginForm";
 import {
   ACCOUNT_KEY,
@@ -29,6 +25,7 @@ import {
 } from "./auth/prototypeAuth";
 import "./styles.css";
 import { Sidebar } from "./Sidebar";
+import { PatientDocuments } from "./PatientDocuments";
 import { ModulePages } from "./ModulePages";
 import { canAccess, pageNames, roleNames, type Page } from "./navigation";
 
@@ -228,6 +225,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
   const [resultDetail, setResultDetail] = useState("Standard");
   const [results, setResults] = useState<Patient[] | null>(null);
   const [preview, setPreview] = useState<Patient | null>(null);
+  const [editing, setEditing] = useState<Patient | null>(null);
   const save = (next: Database) => {
     try {
       localStorage.setItem(KEY, JSON.stringify(next));
@@ -242,6 +240,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
   };
   const navigate = (p: Page) => {
     if (!canAccess(role, p)) return;
+    setEditing(null);
     setPage(p);
     setErrors({});
     setNotice("");
@@ -300,6 +299,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
       if (
         db.patients.some(
           (p) =>
+            p.id !== editing?.id &&
             p.firstName.toLowerCase() === data.firstName?.toLowerCase() &&
             p.lastName.toLowerCase() === data.lastName?.toLowerCase() &&
             p.dob === data.dob,
@@ -336,6 +336,26 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
       return;
     }
     if (page === "patients") {
+      if (editing) {
+        const updated = { ...editing, ...data };
+        if (
+          save({
+            ...db,
+            patients: db.patients.map((p) =>
+              p.id === editing.id ? updated : p,
+            ),
+          })
+        ) {
+          setResults(
+            (current) =>
+              current?.map((p) => (p.id === updated.id ? updated : p)) ?? null,
+          );
+          setEditing(null);
+          setPreview(updated);
+          setNotice("Patient record updated successfully.");
+        }
+        return;
+      }
       const id = `PT-${String(Math.max(0, ...db.patients.map((p) => Number(p.id.slice(3)))) + 1).padStart(4, "0")}`;
       if (
         save({
@@ -416,7 +436,13 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
     extra: React.InputHTMLAttributes<HTMLInputElement> = {},
   ) => (
     <Field errors={errors} name={name} label={label} required={required}>
-      <input type="text" maxLength={80} placeholder={placeholder} {...extra} />
+      <input
+        type="text"
+        maxLength={80}
+        placeholder={placeholder}
+        defaultValue={page === "patients" ? editing?.[name] : undefined}
+        {...extra}
+      />
     </Field>
   );
   const select = (
@@ -427,7 +453,11 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
     defaultValue = "",
   ) => (
     <Field errors={errors} name={name} label={label} required={required}>
-      <select defaultValue={defaultValue}>
+      <select
+        defaultValue={
+          page === "patients" ? (editing?.[name] ?? defaultValue) : defaultValue
+        }
+      >
         <option value="">{required ? "Select an option" : "All"}</option>
         {options.map((v) => (
           <option key={v}>{v}</option>
@@ -475,7 +505,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
       <div className="workspace">
         <header className="topbar">
           <div className="breadcrumb">
-            <LayoutDashboard size={17} />
             <span>Clinic workspace</span>
             <ChevronRight size={14} />
             <strong>{pageNames[page]}</strong>
@@ -539,62 +568,15 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
           </div>
           {isFormPage ? (
             <>
-              {page !== "settings" && (
-                <div className="stats">
-                  <div>
-                    <span className="stat-icon">
-                      <Users size={21} />
-                    </span>
-                    <span>
-                      <small>Registered patients</small>
-                      <strong>
-                        {String(db.patients.length).padStart(2, "0")}
-                      </strong>
-                    </span>
-                  </div>
-                  <div>
-                    <span className="stat-icon peach">
-                      <ClipboardList size={21} />
-                    </span>
-                    <span>
-                      <small>Walk-ins today</small>
-                      <strong>
-                        {String(
-                          db.visits.filter((v) => v.date === today()).length,
-                        ).padStart(2, "0")}
-                      </strong>
-                    </span>
-                  </div>
-                  <div>
-                    <span className="stat-icon lavender">
-                      <ShieldCheck size={21} />
-                    </span>
-                    <span>
-                      <small>Workspace storage</small>
-                      <strong className="stat-word">This browser</strong>
-                    </span>
-                    <span className="stat-note">Fictional data only</span>
-                  </div>
-                </div>
-              )}
               <div className="content-grid">
                 <section className="form-card">
                   <div className="card-heading">
-                    <div className="heading-icon">
-                      {page === "patients" ? (
-                        <UserPlus size={21} />
-                      ) : page === "visits" ? (
-                        <ClipboardList size={21} />
-                      ) : page === "search" ? (
-                        <Search size={21} />
-                      ) : (
-                        <Settings2 size={21} />
-                      )}
-                    </div>
                     <div>
                       <h2>
                         {page === "patients"
-                          ? "Patient information"
+                          ? editing
+                            ? `Edit patient ? ${editing.id}`
+                            : "Patient information"
                           : page === "visits"
                             ? "Visit details"
                             : page === "search"
@@ -622,7 +604,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                     </div>
                   )}
                   <form
-                    key={page}
+                    key={`${page}-${editing?.id ?? "new"}`}
                     onSubmit={submit}
                     noValidate
                     onReset={() => {
@@ -666,7 +648,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                     {page === "patients" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>Personal details</h3>
                         </div>
                         <div className="fields">
@@ -696,6 +677,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                           >
                             <input
                               type="date"
+                              defaultValue={editing?.dob}
                               min={new Date(
                                 new Date().getFullYear() - 120,
                                 0,
@@ -721,7 +703,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                           ])}
                         </div>
                         <div className="section-title">
-                          <span>02</span>
                           <h3>Contact information</h3>
                         </div>
                         <div className="fields">
@@ -734,6 +715,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                           >
                             <input
                               type="tel"
+                              defaultValue={editing?.phone}
                               placeholder="09171234567"
                               pattern={phoneRule}
                               maxLength={13}
@@ -747,6 +729,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                           >
                             <input
                               type="email"
+                              defaultValue={editing?.email}
                               placeholder="maria@example.com"
                               maxLength={120}
                               autoComplete="email"
@@ -782,6 +765,7 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                           >
                             <input
                               type="tel"
+                              defaultValue={editing?.emergencyPhone}
                               placeholder="09181234567"
                               pattern={phoneRule}
                               maxLength={13}
@@ -820,7 +804,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                     {page === "visits" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>Patient & arrival</h3>
                         </div>
                         <div className="fields">
@@ -898,7 +881,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                           </Field>
                         </div>
                         <div className="section-title">
-                          <span>02</span>
                           <h3>Visit preferences</h3>
                         </div>
                         <fieldset className="radio-field">
@@ -947,7 +929,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                     {page === "search" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>Patient lookup</h3>
                         </div>
                         <div className="fields">
@@ -1040,7 +1021,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                     {page === "settings" && (
                       <>
                         <div className="section-title">
-                          <span>01</span>
                           <h3>About you</h3>
                         </div>
                         <div className="fields">
@@ -1102,7 +1082,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                           </Field>
                         </div>
                         <div className="section-title">
-                          <span>02</span>
                           <h3>Communication preferences</h3>
                         </div>
                         <div className="fields">
@@ -1155,6 +1134,19 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                         </p>
                       </>
                     )}
+                    {page === "patients" && editing && (
+                      <button
+                        className="button secondary"
+                        type="button"
+                        onClick={() => {
+                          setEditing(null);
+                          setErrors({});
+                          setNotice("");
+                        }}
+                      >
+                        Cancel editing
+                      </button>
+                    )}
                     <div className="form-footer">
                       <span>
                         <ShieldCheck size={15} />
@@ -1168,7 +1160,9 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                         </button>
                         <button className="button primary" type="submit">
                           {page === "patients"
-                            ? "Register patient"
+                            ? editing
+                              ? "Save patient changes"
+                              : "Register patient"
                             : page === "visits"
                               ? "Add to queue"
                               : page === "search"
@@ -1296,19 +1290,6 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                       <ArrowRight size={15} />
                     </button>
                   </div>
-                  <div className="local-note">
-                    <ShieldCheck size={20} />
-                    <div>
-                      <strong>Data storage</strong>
-                      <p>
-                        Fictional sample records. Data stays on this device and
-                        browser.
-                      </p>
-                      <button onClick={exportData}>
-                        <Download size={13} /> Export demo records
-                      </button>
-                    </div>
-                  </div>
                 </aside>
               </div>
             </>
@@ -1375,6 +1356,16 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
               <p>
                 {preview.id} · {age(preview.dob)} years · {preview.sex}
               </p>
+              <button
+                className="button primary"
+                onClick={() => {
+                  const patient = preview;
+                  navigate("patients");
+                  setEditing(patient);
+                }}
+              >
+                Edit patient record
+              </button>
               <dl>
                 <dt>Mobile</dt>
                 <dd>{preview.phone}</dd>
@@ -1391,6 +1382,30 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
                 <dt>Registered</dt>
                 <dd>{preview.created}</dd>
               </dl>
+              <PatientDocuments
+                key={preview.id}
+                value={preview.documents || "[]"}
+                onSave={(documents) => {
+                  const updated = { ...preview, documents };
+                  if (
+                    !save({
+                      ...db,
+                      patients: db.patients.map((p) =>
+                        p.id === updated.id ? updated : p,
+                      ),
+                    })
+                  )
+                    return false;
+                  setPreview(updated);
+                  setResults(
+                    (current) =>
+                      current?.map((p) =>
+                        p.id === updated.id ? updated : p,
+                      ) ?? null,
+                  );
+                  return true;
+                }}
+              />
             </>
           </dialog>
         </div>
@@ -1431,10 +1446,6 @@ function PrototypeRoot() {
     );
   return (
     <main className="prototype-login">
-      <p className="helper">
-        Offline UI prototype — not secure for production. Use fictional data
-        only.
-      </p>
       <p className="helper">
         Admin / Doctor demo: <strong>{DEMO_ADMIN.username}</strong> /{" "}
         <strong>{DEMO_PASSWORD}</strong>

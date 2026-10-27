@@ -583,16 +583,6 @@ function App() {
                       </strong>
                     </span>
                   </div>
-                  <div>
-                    <span className="stat-icon lavender">
-                      <ShieldCheck size={21} />
-                    </span>
-                    <span>
-                      <small>Workspace storage</small>
-                      <strong className="stat-word">This browser</strong>
-                    </span>
-                    <span className="stat-note">Fictional data only</span>
-                  </div>
                 </div>
               )}
               <div className="content-grid">

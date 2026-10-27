@@ -1,5 +1,10 @@
+import { signIn } from "./authHelpers";
 import { test, expect, Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+  await signIn(page);
+});
 async function register(page: Page, first = "Maria") {
   if (!(await page.locator("#firstName").count())) {
     await page
@@ -135,6 +140,12 @@ test("keyboard navigation, accessible modal, control counts, and mobile layout",
   page,
 }) => {
   await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Dashboard", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Skip to main content" }),
+  ).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Skip to main content" }),

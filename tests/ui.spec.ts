@@ -1,4 +1,10 @@
-﻿import { test, expect } from "@playwright/test";
+import { signIn, switchRole } from "./authHelpers";
+import { test, expect } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+  await signIn(page);
+});
 import AxeBuilder from "@axe-core/playwright";
 
 test("mobile navigation supports keyboard selection, role changes, and desktop resizing", async ({
@@ -35,7 +41,7 @@ test("mobile navigation supports keyboard selection, role changes, and desktop r
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
   await expect(menu).toHaveAttribute("aria-expanded", "false");
   await expect(navigation).toBeHidden();
-  await page.getByLabel("Role preview").selectOption("staff");
+  await switchRole(page, "staff");
   await menu.click();
   await expect(
     page

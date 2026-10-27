@@ -5,7 +5,6 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"], ["json", { outputFile: "test-results/results.json" }]],
   use: {
-    channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
     baseURL: "http://127.0.0.1:5173",
     viewport: { width: 1440, height: 1100 },
     timezoneId: "Asia/Manila",

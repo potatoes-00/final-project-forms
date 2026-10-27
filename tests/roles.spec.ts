@@ -1,11 +1,5 @@
-import { signIn, switchRole } from "./authHelpers";
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-
-test.beforeEach(async ({ page }) => {
-  await page.goto("/");
-  await signIn(page);
-});
 
 const shared = [
   "Dashboard",
@@ -63,7 +57,7 @@ test("sidebar follows both role menus, expands Administration, and leaves restri
   await expect(
     page.getByRole("heading", { name: "Staff Accounts", level: 1 }),
   ).toBeVisible();
-  await switchRole(page, "staff");
+  await page.getByLabel("Role preview").selectOption("staff");
   await expect(
     page.getByRole("heading", { name: "Dashboard", level: 1 }),
   ).toBeVisible();
@@ -96,8 +90,8 @@ test("sidebar follows both role menus, expands Administration, and leaves restri
     "Patient visits",
   ]);
   await page.reload();
-  await expect(page.locator(".top-right")).toContainText("Clinic Staff");
-  await switchRole(page, "admin");
+  await expect(page.getByLabel("Role preview")).toHaveValue("staff");
+  await page.getByLabel("Role preview").selectOption("admin");
   await go(page, "Reports");
   await expect(page.getByLabel("Report type").locator("option")).toHaveText([
     "Patient registrations",
@@ -149,7 +143,7 @@ test("staff can create and update a lab request, process payment, and generate p
   page,
 }) => {
   await page.goto("/");
-  await switchRole(page, "staff");
+  await page.getByLabel("Role preview").selectOption("staff");
   await createVisit(page);
   await go(page, "Services & Lab");
   await page
@@ -200,8 +194,7 @@ test("staff can create and update a lab request, process payment, and generate p
     .getByRole("button", { name: "Generate report", exact: true })
     .click();
   await expect(page.locator("tbody tr")).toHaveCount(1);
-  await switchRole(page, "admin");
-  await go(page, "Reports");
+  await page.getByLabel("Role preview").selectOption("admin");
   await page.getByLabel("Report type").selectOption("revenue");
   await page
     .getByRole("button", { name: "Generate report", exact: true })
@@ -218,11 +211,6 @@ test("staff administration validates duplicates and saves preview account status
     .getByRole("button", { name: "Add staff account", exact: true })
     .click();
   await page.getByLabel("Full name", { exact: true }).fill("Jamie Cruz");
-  await page.getByLabel("Username", { exact: true }).fill("jamie.cruz");
-  await page.getByLabel("Password", { exact: true }).fill("StaffDemo2026!");
-  await page
-    .getByLabel("Confirm password", { exact: true })
-    .fill("StaffDemo2026!");
   await page
     .getByLabel("Email address", { exact: true })
     .fill("staff@example.com");
@@ -243,7 +231,7 @@ test("staff administration validates duplicates and saves preview account status
   await go(page, "Staff Accounts");
   await expect(
     page.getByRole("row").filter({ hasText: "Jamie Cruz" }),
-  ).toContainText("Deactivated");
+  ).toContainText("Inactive");
 });
 
 test("restore rejects malformed data without replacing saved workspace records", async ({
@@ -286,7 +274,7 @@ test("both roles' screens pass accessibility checks and fit mobile widths", asyn
   test.setTimeout(60000);
   await page.goto("/");
   for (const role of ["admin", "staff"]) {
-    await switchRole(page, role);
+    await page.getByLabel("Role preview").selectOption(role);
     const names = [
       ...shared,
       ...(role === "admin"

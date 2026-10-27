@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
@@ -13,21 +13,17 @@ import {
   X,
 } from "lucide-react";
 import "@fontsource-variable/dm-sans";
-import { LoginForm } from "./auth/LoginForm";
-import {
-  ACCOUNT_KEY,
-  DEMO_ADMIN,
-  DEMO_PASSWORD,
-  login,
-  logout,
-  restoreSession,
-  type Identity,
-} from "./auth/prototypeAuth";
 import "./styles.css";
 import { Sidebar } from "./Sidebar";
 import { PatientDocuments } from "./PatientDocuments";
 import { ModulePages } from "./ModulePages";
-import { canAccess, pageNames, roleNames, type Page } from "./navigation";
+import {
+  canAccess,
+  pageNames,
+  roleNames,
+  type Page,
+  type Role,
+} from "./navigation";
 
 type Values = Record<string, string>;
 type Patient = Values & { id: string; created: string };
@@ -216,9 +212,17 @@ function Field({
     </div>
   );
 }
-function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
+function App() {
   const [db, setDB] = useState<Database>(readDB);
-  const role = user.role;
+  const [role, setRole] = useState<Role>(() => {
+    try {
+      return sessionStorage.getItem("medisystem-role-preview") === "staff"
+        ? "staff"
+        : "admin";
+    } catch {
+      return "admin";
+    }
+  });
   const [page, setPage] = useState<Page>("dashboard");
   const [errors, setErrors] = useState<Values>({});
   const [notice, setNotice] = useState("");
@@ -510,12 +514,27 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
             <strong>{pageNames[page]}</strong>
           </div>
           <div className="top-right">
-            <span className="authenticated-identity">
-              {user.name} · {roleNames[role]}
-            </span>
-            <button className="button secondary" onClick={onLogout}>
-              Logout
-            </button>
+            <label className="role-preview">
+              <span>Role preview</span>
+              <select
+                aria-label="Role preview"
+                value={role}
+                onChange={(event) => {
+                  const nextRole = event.target.value as Role;
+                  setRole(nextRole);
+                  try {
+                    sessionStorage.setItem("medisystem-role-preview", nextRole);
+                  } catch {}
+                  setPreview(null);
+                  setErrors({});
+                  setNotice("");
+                  if (!canAccess(nextRole, page)) setPage("dashboard");
+                }}
+              >
+                <option value="admin">Admin / Doctor</option>
+                <option value="staff">Clinic Staff</option>
+              </select>
+            </label>
             <div className="top-divider" />
             <button className="profile" onClick={() => navigate("settings")}>
               <span className="avatar">
@@ -1413,68 +1432,8 @@ function App({ user, onLogout }: { user: Identity; onLogout: () => void }) {
     </>
   );
 }
-function PrototypeRoot() {
-  const [user, setUser] = useState<Identity | null>(restoreSession);
-  const [feedback, setFeedback] = useState("");
-  const signOut = () => {
-    try {
-      logout();
-      setUser(null);
-      setFeedback("You have logged out of the prototype.");
-    } catch {
-      setFeedback("Unable to clear the prototype session. Please try again.");
-    }
-  };
-  useEffect(() => {
-    const refresh = () => setUser(restoreSession());
-    const storage = (event: StorageEvent) => {
-      if (event.key === ACCOUNT_KEY || event.key === null) refresh();
-    };
-    window.addEventListener("storage", storage);
-    window.addEventListener("focus", refresh);
-    return () => {
-      window.removeEventListener("storage", storage);
-      window.removeEventListener("focus", refresh);
-    };
-  }, []);
-  if (user)
-    return (
-      <>
-        {feedback && <p role="status">{feedback}</p>}
-        <App key={user.id} user={user} onLogout={signOut} />
-      </>
-    );
-  return (
-    <main className="prototype-login">
-      <p className="helper">
-        Offline UI prototype — not secure for production. Use fictional data
-        only.
-      </p>
-      <p className="helper">
-        Admin / Doctor demo: <strong>{DEMO_ADMIN.username}</strong> /{" "}
-        <strong>{DEMO_PASSWORD}</strong>
-      </p>
-      {feedback && <p role="status">{feedback}</p>}
-      <LoginForm
-        onLogin={async (credentials) => {
-          const identity = await login(
-            credentials.username,
-            credentials.password,
-          );
-          setFeedback("");
-          setUser(identity);
-        }}
-        onForgotPassword={() =>
-          setFeedback(
-            "Prototype only: password recovery is unavailable and no email was sent. Ask the demo administrator for help.",
-          )
-        }
-      />
-    </main>
-  );
-}
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <PrototypeRoot />
+    <App />
   </React.StrictMode>,
 );
